@@ -4,6 +4,7 @@ import React from 'react'
 import { useState, useEffect } from 'react'
 import Modal from '@/components/Modal'
 import AuthModal from '@/components/AuthModal'
+import UploadModal from '@/components/UploadModal'
 
 
 const ModelProvider = () => {
@@ -19,6 +20,7 @@ const ModelProvider = () => {
   return (
     <>
     <AuthModal />
+    <UploadModal />
     </>
   )
 }
