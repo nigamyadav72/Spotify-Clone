@@ -134,14 +134,21 @@ const manageSubscriptionStatusChange = async (
     customerId: string,
     createAction = false,
 ) => {
+    console.log(`Managing subscription status change for subscription: ${subscriptionId}, customer: ${customerId}`)
+    
     const { data: customerData, error: noCustomError} = await supabaseAdmin
         .from('customers')
         .select('id')
         .eq('stripe_customer_id',customerId)
         .single()
-    if(noCustomError) throw noCustomError
+    
+    if(noCustomError) {
+        console.error('Error fetching customer:', noCustomError)
+        throw noCustomError
+    }
 
     const {id: uuid } = customerData;
+    console.log(`Found customer UUID: ${uuid}`)
 
     const subscription = await stripe.subscriptions.retrieve(
         subscriptionId,
@@ -149,6 +156,8 @@ const manageSubscriptionStatusChange = async (
             expand: ["default_payment_method"]
         }
     )
+
+    console.log(`Retrieved subscription from Stripe: ${subscription.id}, status: ${subscription.status}`)
 
     const subscriptionData: Database["public"]["Tables"]["subscriptions"]["Insert"] ={
         id: subscription.id,
@@ -170,13 +179,19 @@ const manageSubscriptionStatusChange = async (
         trial_end: subscription.trial_end ? toDateTime(subscription.trial_end).toISOString() : null,
         
     }
+    
+    console.log(`Attempting to upsert subscription data:`, subscriptionData)
+    
     const { error } = await supabaseAdmin
         .from('subscriptions')
         .upsert([subscriptionData])
     
-    if(error) throw error
+    if(error) {
+        console.error('Error upserting subscription:', error)
+        throw error
+    }
 
-    console.log(`Inserted / Updated subscription [${subscription.id} for ${uuid}]`)
+    console.log(`Successfully inserted / Updated subscription [${subscription.id} for ${uuid}]`)
 
 
     if (createAction && subscription.default_payment_method && uuid){

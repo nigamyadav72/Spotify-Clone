@@ -1,5 +1,4 @@
 import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
-import { create } from "domain";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function middleware(req: NextRequest) {
@@ -8,7 +7,9 @@ export async function middleware(req: NextRequest) {
         req,
         res
     })
-    await supabase.auth.getSession()
+    
+    // Use getUser() instead of getSession() for better security
+    await supabase.auth.getUser()
+    
     return res
-
 }
