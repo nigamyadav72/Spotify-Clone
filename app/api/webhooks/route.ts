@@ -25,21 +25,34 @@ const relevantEvents = new Set([
 export async function POST(
     request: Request
 ) {
+    console.log('=== WEBHOOK RECEIVED ===');
     const body = await request.text()
+    console.log('Webhook body length:', body.length);
     const sig = request.headers.get('Stripe-Signature')
+    console.log('Stripe signature present:', !!sig);
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+    console.log('Webhook secret configured:', !!webhookSecret);
     let event: Stripe.Event
 
     try {
-        if(!sig || !webhookSecret) return;
+        if(!sig || !webhookSecret) {
+            console.error('Missing webhook signature or secret');
+            console.error('Signature:', sig);
+            console.error('Webhook secret configured:', !!webhookSecret);
+            return NextResponse.json({ message: 'Missing webhook signature or secret' }, { status: 400 });
+        }
         event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
     } catch (error: any) {
-        console.log(`Webhook error: ${error.message}`);
+        console.error(`Webhook error: ${error.message}`);
         return NextResponse.json({ message: 'Webhook error' }, { status: 400 });
     }
     
+    console.log('Event type received:', event.type);
+    console.log('Is relevant event:', relevantEvents.has(event.type));
+    
     if (relevantEvents.has(event.type)) {
         try {
+            console.log('Processing event:', event.type);
             switch (event.type) {
                 case 'product.created':
                 case 'product.updated':
@@ -74,7 +87,9 @@ export async function POST(
                     throw new Error('Unhandled relevant event!');
             }
         } catch (error: any) {
-            console.log(error);
+            console.error('Webhook handler failed:', error);
+            console.error('Event type:', event.type);
+            console.error('Event data:', JSON.stringify(event.data, null, 2));
             return NextResponse.json({ error: 'Webhook handler failed. View logs.' }, { status: 400 });
         }
     }

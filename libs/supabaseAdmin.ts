@@ -136,19 +136,41 @@ const manageSubscriptionStatusChange = async (
 ) => {
     console.log(`Managing subscription status change for subscription: ${subscriptionId}, customer: ${customerId}`)
     
-    const { data: customerData, error: noCustomError} = await supabaseAdmin
+    const { data: customerData, error: customerError} = await supabaseAdmin
         .from('customers')
         .select('id')
         .eq('stripe_customer_id',customerId)
         .single()
     
-    if(noCustomError) {
-        console.error('Error fetching customer:', noCustomError)
-        throw noCustomError
+    if(customerError) {
+        console.error('Error fetching customer:', customerError)
+        throw customerError
     }
 
     const {id: uuid } = customerData;
     console.log(`Found customer UUID: ${uuid}`)
+    
+    // Check if user exists in users table
+    const { data: userData, error: userError } = await supabaseAdmin
+        .from('users')
+        .select('id')
+        .eq('id', uuid)
+        .single()
+    
+    if(userError || !userData) {
+        console.error('User not found in users table:', uuid)
+        console.error('User error:', userError)
+        // Create user record if it doesn't exist
+        const { error: insertUserError } = await supabaseAdmin
+            .from('users')
+            .insert([{ id: uuid }])
+        
+        if(insertUserError) {
+            console.error('Failed to create user record:', insertUserError)
+            throw insertUserError
+        }
+        console.log('Created user record for:', uuid)
+    }
 
     const subscription = await stripe.subscriptions.retrieve(
         subscriptionId,
@@ -163,11 +185,9 @@ const manageSubscriptionStatusChange = async (
         id: subscription.id,
         user_id: uuid,
         metadata:subscription.metadata,
-        //@ts-ignore
-        status: subscription.status,
+        status: subscription.status as any,
         price_id: subscription.items.data[0].price.id,
-        //@ts-ignore
-        quantity: subscription.quantity,
+        quantity: (subscription as any).quantity,
         cancel_at_period_end: subscription.cancel_at_period_end,
         cancel_at: subscription.cancel_at ? toDateTime(subscription.cancel_at).toISOString() : null,
         canceled_at: subscription.canceled_at ? toDateTime(subscription.canceled_at).toISOString() : null,
