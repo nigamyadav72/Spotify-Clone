@@ -13,7 +13,9 @@ const eslintConfig = [
       'prettier' // optional, for formatting consistency
     ],
     rules: {
-      'react/react-in-jsx-scope': 'off' // ✅ Disable the old rule
+      'react/react-in-jsx-scope': 'off', // ✅ Disable the old rule
+      'react/no-unescaped-entities': 'off',
+      '@next/next/no-page-custom-font': 'off',
     }
   }),
 ]
