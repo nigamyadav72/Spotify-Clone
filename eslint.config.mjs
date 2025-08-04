@@ -12,6 +12,9 @@ const eslintConfig = [
       'plugin:react-hooks/recommended',
       'prettier' // optional, for formatting consistency
     ],
+    rules: {
+      'react/react-in-jsx-scope': 'off' // ✅ Disable the old rule
+    }
   }),
 ]
 
