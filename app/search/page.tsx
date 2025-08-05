@@ -1,16 +1,11 @@
 import getSongsByTitle from '@/actions/getSongsByTitle'
 import Header from '@/components/Header'
 import SearchInput from '@/components/SearchInput'
-import React from 'react'
 import SearchContent from './components/SearchContent'
 
 export const revalidate = 0
 
-type SearchProps = {
-  searchParams?: Record<string, string | string[] | undefined>
-}
-
-const Search = async ({ searchParams }: SearchProps) => {
+const SearchPage = async ({ searchParams }: any) => {
   const title = typeof searchParams?.title === 'string' ? searchParams.title : ''
   const songs = await getSongsByTitle(title)
 
@@ -27,4 +22,4 @@ const Search = async ({ searchParams }: SearchProps) => {
   )
 }
 
-export default Search
+export default SearchPage
