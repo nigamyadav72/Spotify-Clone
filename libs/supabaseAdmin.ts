@@ -1,13 +1,11 @@
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 
-
 import { Database } from "@/type_db";
 import { Price, Product } from "@/types";
 
 import {stripe} from "./stripe"
 import { toDateTime } from "./helpers";
-
 
 export const supabaseAdmin = createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -35,7 +33,6 @@ const upsertProductRecord = async (product: Stripe.Product) => {
     console.log(`Product inserted/updated: ${product.id}`)
 }   
 
-
 const upsertPriceRecord = async (price: Stripe.Price) => {
     const priceData : Price ={
         id:price.id,
@@ -49,7 +46,6 @@ const upsertPriceRecord = async (price: Stripe.Price) => {
         interval_count: price.recurring?.interval_count,
         trial_period_days: price.recurring?.trial_period_days,
         metadata: price.metadata
-
     }
 
     const { error } = await supabaseAdmin
@@ -61,11 +57,7 @@ const upsertPriceRecord = async (price: Stripe.Price) => {
     }
 
     console.log(`Price inserted/updated: ${price.id}`)
-
-
-
 }
-
 
 const createOrRetrieveCustomer = async ({
     email,
@@ -73,7 +65,6 @@ const createOrRetrieveCustomer = async ({
 }:{
     email:string,
     uuid: string
-
 }) => {
     const {data ,error} = await supabaseAdmin
         .from('customers')
@@ -121,12 +112,10 @@ const copyBillingDetailsToCustomer = async (
         .update({
             billing_address: {...address},
             payment_method: {...payment_method[payment_method.type]}
-
         })
         .eq('id', uuid)
     
     if(error) throw error
-
 }
 
 const manageSubscriptionStatusChange = async (
@@ -181,6 +170,24 @@ const manageSubscriptionStatusChange = async (
 
     console.log(`Retrieved subscription from Stripe: ${subscription.id}, status: ${subscription.status}`)
 
+    // Fixed function to properly handle timestamp conversion
+    function safeToISOString(val: number | string | null | undefined): string | undefined {
+        // Explicitly check for null and undefined
+        if (val === null || val === undefined) return undefined;
+        
+        // If it's already a string (ISO format), return as is
+        if (typeof val === "string") return val;
+        
+        // If it's a number (Unix timestamp), convert it
+        if (typeof val === "number") {
+            const date = toDateTime(val);
+            return isNaN(date.getTime()) ? undefined : date.toISOString();
+        }
+        
+        // For any other type, return undefined
+        return undefined;
+    }
+
     const subscriptionData: Database["public"]["Tables"]["subscriptions"]["Insert"] ={
         id: subscription.id,
         user_id: uuid,
@@ -191,13 +198,12 @@ const manageSubscriptionStatusChange = async (
         cancel_at_period_end: subscription.cancel_at_period_end,
         cancel_at: subscription.cancel_at ? toDateTime(subscription.cancel_at).toISOString() : null,
         canceled_at: subscription.canceled_at ? toDateTime(subscription.canceled_at).toISOString() : null,
-        current_period_start:toDateTime((subscription as any).current_period_start).toISOString(),
-        current_period_end:toDateTime((subscription as any).current_period_end).toISOString(),
+        current_period_start: safeToISOString(subscription.items.data[0]?.current_period_start),
+        current_period_end: safeToISOString(subscription.items.data[0]?.current_period_end),
         created: toDateTime(subscription.created).toISOString(),
         ended_at: subscription.ended_at ? toDateTime(subscription.ended_at).toISOString(): null,
         trial_start: subscription.trial_start ? toDateTime(subscription.trial_start).toISOString() : null,
         trial_end: subscription.trial_end ? toDateTime(subscription.trial_end).toISOString() : null,
-        
     }
     
     console.log(`Attempting to upsert subscription data:`, subscriptionData)
@@ -213,14 +219,12 @@ const manageSubscriptionStatusChange = async (
 
     console.log(`Successfully inserted / Updated subscription [${subscription.id} for ${uuid}]`)
 
-
     if (createAction && subscription.default_payment_method && uuid){
         await copyBillingDetailsToCustomer(
             uuid,
             subscription.default_payment_method as Stripe.PaymentMethod
         )
     }
-
 }
 
 export{
